@@ -5,7 +5,7 @@ A step-by-step checklist that lets a product manager with no Amplitude experienc
 It is a static site (no build step). Progress is saved per feature so a PM can come back and continue.
 
 - **Local mode** (default): works the moment the page is opened. Progress is saved in the PM's own browser.
-- **Cloud mode**: PMs sign in with their work email (magic link), features are saved in Supabase, and the **Feature map** tab shows every feature anyone has run through the flow and where it stands.
+- **Cloud mode**: PMs sign in with their work email and a password of their choice (no confirmation email), features are saved in Supabase, and the **Feature map** tab shows every feature anyone has run through the flow and where it stands.
 
 ## Files
 
@@ -29,7 +29,7 @@ That is enough for local mode.
 
 1. Go to <https://supabase.com>, create a project (any region; EU is fine).
 2. **SQL editor → New query** → paste the contents of `supabase/schema.sql` → **Run**.
-3. **Authentication → Providers → Email**: keep *Enable email provider* on; *Confirm email* can stay on; magic links are on by default.
+3. **Authentication → Sign In / Providers**: keep *Allow new users to sign up* on and switch **Confirm email off** (no emails are sent; the built-in sender is limited to 2 per hour anyway). Then run `supabase/002_email_ownership.sql` in the SQL editor.
 4. **Authentication → URL configuration**:
    - *Site URL*: your GitHub Pages URL, e.g. `https://<org>.github.io/amplitude-pm-bible/`
    - *Redirect URLs*: add the same URL.
@@ -41,7 +41,9 @@ That is enough for local mode.
    ALLOWED_EMAIL_DOMAIN: "alefeducation.com",
    ```
    Commit and push. The publishable key is designed to be public; row-level security in `schema.sql` is what protects the data.
-7. Open the site. Enter a work email, click the link in the inbox, and the feature list appears.
+7. Open the site. Enter a work email and a password; the account is created on first use and the feature list appears.
+
+Forgot password: Authentication → Users → delete that user; they sign in again with a new password and keep their features (ownership is by email).
 
 Optional later: **Authentication → Providers → Azure** to add Microsoft 365 sign-in (needs an Azure app registration from IT). Nothing in the app changes.
 

@@ -72,13 +72,19 @@ const Store={
     }
     return this;
   },
-  async signIn(email){
+  async signIn(email,password){
     const dom=(CFG.ALLOWED_EMAIL_DOMAIN||'').toLowerCase();
     if(dom&&!email.toLowerCase().endsWith('@'+dom)) throw new Error('Use your @'+dom+' email.');
-    const {error}=await this.sb.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin+location.pathname}});
-    if(error) throw error;
+    if(!password||password.length<8) throw new Error('Password needs at least 8 characters.');
+    const r=await this.sb.auth.signInWithPassword({email,password});
+    if(!r.error) return 'in';
+    if(!/invalid login credentials/i.test(r.error.message)) throw r.error;
+    // No account yet → create it with this password (email confirmation is off).
+    const s=await this.sb.auth.signUp({email,password});
+    if(s.error){ if(/already registered/i.test(s.error.message)) throw new Error('Wrong password for this email. Ask Kandil to reset it.'); throw s.error; }
+    if(!s.data.session) throw new Error('Account created but no session returned — check that "Confirm email" is off in Supabase.');
+    return 'new';
   },
-  async signInMicrosoft(){ const {error}=await this.sb.auth.signInWithOAuth({provider:'azure',options:{scopes:'email openid profile',redirectTo:location.origin+location.pathname}}); if(error) throw error; },
   async signOut(){ await this.sb.auth.signOut(); },
   _local(){ try{ return JSON.parse(localStorage.getItem(this.LKEY)||'[]'); }catch(e){ return []; } },
   _setLocal(arr){ try{ localStorage.setItem(this.LKEY,JSON.stringify(arr)); }catch(e){} },
@@ -376,13 +382,13 @@ const App={
     return this.renderFeature(main);
   },
   renderSignin(main){
-    main.innerHTML=`<div class="signin"><h2>Sign in</h2><p>Enter your work email. We send a sign-in link; no password.</p>
-      <div class="field"><input id="email" type="email" class="wide" placeholder="you@${esc(CFG.ALLOWED_EMAIL_DOMAIN||'company.com')}" autocomplete="email"></div>
-      <div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn primary" id="sendLink">Send me the link</button><span class="status" id="signMsg"></span></div>
+    main.innerHTML=`<div class="signin"><h2>Sign in</h2><p>Your work email and a password of your choice. The first time, your account is created on the spot; after that, the same two fields sign you in.</p>
+      <div class="field" style="flex-direction:column;align-items:stretch"><input id="email" type="email" class="wide" placeholder="you@${esc(CFG.ALLOWED_EMAIL_DOMAIN||'company.com')}" autocomplete="email"><input id="pw" type="password" class="wide" placeholder="Password (8+ characters)" autocomplete="current-password"></div>
+      <div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn primary" id="signBtn">Sign in</button><span class="status" id="signMsg"></span></div>
       ${CFG.MICROSOFT_SSO?`<div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--line)"><button class="btn" id="msBtn">Continue with Microsoft 365</button></div>`:''}</div>`;
+    const go=async()=>{const em=$('#email').value.trim(), pw=$('#pw').value; const msg=$('#signMsg'); if(!em||!pw) return; try{ msg.textContent='Signing in…'; const r=await Store.signIn(em,pw); msg.textContent=r==='new'?'Account created.':'Signed in.'; }catch(e){ msg.textContent=e.message; }};
+    $('#signBtn').onclick=go; $('#pw').onkeydown=e=>{if(e.key==='Enter')go();}; $('#email').onkeydown=e=>{if(e.key==='Enter')$('#pw').focus();};
     const ms=$('#msBtn'); if(ms) ms.onclick=async()=>{ try{ await Store.signInMicrosoft(); }catch(e){ $('#signMsg').textContent=e.message; } };
-    const go=async()=>{const em=$('#email').value.trim(); const msg=$('#signMsg'); if(!em) return; try{ msg.textContent='Sending…'; await Store.signIn(em); msg.textContent='Check your inbox and open the link on this device.'; }catch(e){ msg.textContent=e.message; }};
-    $('#sendLink').onclick=go; $('#email').onkeydown=e=>{if(e.key==='Enter')go();};
   },
   renderList(main){
     const rows=this.features.map(f=>{const d=f.data; const n=STEPS.length; const cur=statusOf(d);
