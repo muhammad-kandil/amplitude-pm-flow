@@ -391,9 +391,9 @@ const App={
   renderSignin(main){
     const dom=CFG.ALLOWED_EMAIL_DOMAIN||'company.com'; let last=''; try{ last=localStorage.getItem('pm-flow-last-email')||''; }catch(e){}
     const local=last.includes('@')?last.split('@')[0]:last;
-    main.innerHTML=`<div class="signin"><h2>Sign in</h2><p>Your work email and a password of your choice.</p>
+    main.innerHTML=`<div class="signin"><h2>Sign in</h2><p>Type your Alef email exactly as it appears in Outlook (only the part before the @), plus a password of your choice.</p>
       <div class="field" style="flex-direction:column;align-items:stretch;gap:8px">
-        <div style="display:flex;align-items:center;gap:0;border:1.5px solid var(--line);border-radius:10px;overflow:hidden"><input id="email" type="text" style="border:0;border-radius:0;flex:1;min-width:0" placeholder="firstname.lastname" value="${esc(local)}" autocomplete="username" autocapitalize="off" spellcheck="false"><span style="padding:0 12px;color:var(--muted);white-space:nowrap;background:var(--bg);align-self:stretch;display:flex;align-items:center">@${esc(dom)}</span></div>
+        <div style="display:flex;align-items:center;gap:0;border:1.5px solid var(--line);border-radius:10px;overflow:hidden"><input id="email" type="text" style="border:0;border-radius:0;flex:1;min-width:0" placeholder="the part before the @" value="${esc(local)}" autocomplete="username" autocapitalize="off" spellcheck="false"><span style="padding:0 12px;color:var(--muted);white-space:nowrap;background:var(--bg);align-self:stretch;display:flex;align-items:center">@${esc(dom)}</span></div>
         <input id="pw" type="password" class="wide" placeholder="Password (8+ characters)" autocomplete="current-password"></div>
       <div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn primary" id="signBtn">Sign in</button><span class="status" id="signMsg"></span></div>
       <div id="createBox" hidden style="margin-top:18px;padding:14px;border:1px solid var(--warn);border-radius:12px;background:var(--warn-soft)">
