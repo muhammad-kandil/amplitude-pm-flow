@@ -1,4 +1,4 @@
-# Amplitude PM Bible
+# Amplitude PM Flow
 
 A step-by-step checklist that lets a product manager with no Amplitude experience own a feature's tracking from the gate on the epic to a live dashboard. The PM taps choices; the app writes every name (events, data-testids, cohorts, chart titles, dashboard, folder), the Jira story for the developer, the demo-day sheet and the build plan.
 

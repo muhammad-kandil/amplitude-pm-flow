@@ -1,4 +1,4 @@
--- Amplitude PM Bible — Supabase schema
+-- Amplitude PM Flow — Supabase schema
 -- Run once in the Supabase SQL editor (Project → SQL → New query → paste → Run).
 
 -- 1) One row per feature. The whole checklist state lives in `data` (jsonb).

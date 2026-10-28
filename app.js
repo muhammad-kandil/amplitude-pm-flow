@@ -1,9 +1,9 @@
-/* Amplitude PM Bible — app logic
+/* Amplitude PM Flow — app logic
    Sources: "The PM Flow for Amplitude" deck (July 2026), KB: PM guide to tag features, data-testid protocol,
    End-to-End Use Case Guide, governance articles. */
 (function(){
 'use strict';
-const CFG = window.PM_BIBLE_CONFIG || {};
+const CFG = window.PM_FLOW_CONFIG || {};
 const KB='https://kb.alefed.com/docs/';
 const LINKS={pm:KB+'amplitude-pm-guide-to-tag-features',e2e:KB+'amplitude-end-to-end-use-case-guide',all:KB+'all-about-amplitude',
   cohorts:KB+'cohorts-general',replay:KB+'session-replays-general',dash:KB+'how-to-navigate-and-access-the-dashboards',
@@ -363,7 +363,7 @@ const App={
   async render(){
     const top=$('#topbar');
     const acct = Store.mode==='cloud' ? (Store.user?`<span class="pill">${esc(Store.user.email)}</span><button class="linkbtn" id="signout">Sign out</button>`:'') : `<span class="pill" title="Add Supabase keys in config.js to turn on sign-in">Saving in this browser only</span>`;
-    top.innerHTML=`<div class="brand"><div class="mark">A</div><div><h1>Amplitude PM Bible</h1><small>Idea → events → developer → demo day → dashboard</small></div></div>
+    top.innerHTML=`<div class="brand"><div class="mark">A</div><div><h1>Amplitude PM Flow</h1><small>From the gate on the epic to a dashboard nobody has to explain</small></div></div>
       <div class="tabs">${this.view!=='signin'?`<button class="tab ${this.view==='list'?'on':''}" data-view="list">My features</button><button class="tab ${this.view==='map'?'on':''}" data-view="map">Feature map</button>`:''}${this.view==='feature'?`<span class="savestate" id="saveState">${esc(this.saveState)}</span>`:''}</div>
       <div class="acct">${acct}</div>`;
     top.querySelectorAll('[data-view]').forEach(b=>b.onclick=async()=>{if(this.cur&&this.saveTimer) await this.flush(); this.view=b.dataset.view;this.cur=null;this.render();});
@@ -440,7 +440,7 @@ const App={
     card.querySelectorAll('[data-copy]').forEach(b=>b.onclick=()=>copyText(({q:qText,jira:jiraText,demo:demoText,build:buildText})[b.dataset.copy](d),b));
   }
 };
-window.PMBible={App,Store,STEPS,N,suggested,allQuestions,jiraText,demoText,buildText,finalChecks,statusOf,blankData};
+window.PMFlow={App,Store,STEPS,N,suggested,allQuestions,jiraText,demoText,buildText,finalChecks,statusOf,blankData};
 document.addEventListener('DOMContentLoaded',()=>App.start());
 window.addEventListener('pagehide',()=>{ if(App.cur&&App.saveTimer) App.flush(); });
 })();
