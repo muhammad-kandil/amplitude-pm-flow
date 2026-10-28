@@ -362,7 +362,7 @@ const Screens={
       ${kit('jira','Jira story — generated','Summary, Why, Acceptance criteria (one per moment), Rules, Definition of done. Jira converts the Markdown when you paste it into the description.',jiraText(d))}
       <div class="q"><div class="label">Jira key <span class="hint" style="font-weight:400">(optional)</span></div><div class="field"><input id="jkey" type="text" placeholder="e.g. CORE-1234" value="${esc(d.jira.key)}" autocomplete="off"></div></div>
       ${check('tog','jira.pasted',d.jira.pasted,'The story is in Jira with these acceptance criteria','Acceptance criteria, not a comment. The developer reads it while pointing.')}
-      <div class="note"><b>If the developer says a moment lives in the code</b>, go back to step 5 and mark it “cannot see it”. The story updates itself.</div>
+      <div class="note"><b>After the conversation:</b> if the developer says a moment happens in the code (no real button, confirmed by the server, mobile), go back to step 5, tap <b>cannot see it</b> for that moment, come back here and copy the story again. The text is rewritten from your answers, so never edit it by hand.</div>
     </div>`; },
   dev(d){ const page=d.journey.filter(m=>m.where!=='code'), code=d.journey.filter(m=>m.where!=='page');
     return head('Step 8 · Sprint','What the developer owes you','Three things. That is the whole contract. Tick each one when the pull request shows it.','all three are ticked.','dev')+
