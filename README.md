@@ -19,9 +19,9 @@ It is a static site (no build step). Progress is saved per feature so a PM can c
 
 ## 1. Publish on GitHub Pages
 
-1. Create a repository (for example `amplitude-pm-bible`) and push these files to the `main` branch.
+1. Create a repository (for example `amplitude-pm-flow`) and push these files to the `main` branch.
 2. Repository → **Settings → Pages** → Source: *Deploy from a branch* → Branch: `main`, folder `/ (root)` → Save.
-3. After a minute the site is live at `https://<org-or-user>.github.io/amplitude-pm-bible/`.
+3. After a minute the site is live at `https://<org-or-user>.github.io/amplitude-pm-flow/`.
 
 That is enough for local mode.
 
@@ -31,7 +31,7 @@ That is enough for local mode.
 2. **SQL editor → New query** → paste the contents of `supabase/schema.sql` → **Run**.
 3. **Authentication → Sign In / Providers**: keep *Allow new users to sign up* on and switch **Confirm email off** (no emails are sent; the built-in sender is limited to 2 per hour anyway). Then run `supabase/002_email_ownership.sql` in the SQL editor.
 4. **Authentication → URL configuration**:
-   - *Site URL*: your GitHub Pages URL, e.g. `https://<org>.github.io/amplitude-pm-bible/`
+   - *Site URL*: your GitHub Pages URL, e.g. `https://<org>.github.io/amplitude-pm-flow/`
    - *Redirect URLs*: add the same URL.
 5. **Project settings → API**: copy the *Project URL* and the *publishable* key (Settings → API Keys).
 6. Edit `config.js`:
