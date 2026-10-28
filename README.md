@@ -33,14 +33,14 @@ That is enough for local mode.
 4. **Authentication → URL configuration**:
    - *Site URL*: your GitHub Pages URL, e.g. `https://<org>.github.io/amplitude-pm-bible/`
    - *Redirect URLs*: add the same URL.
-5. **Project settings → API**: copy the *Project URL* and the *anon public* key.
+5. **Project settings → API**: copy the *Project URL* and the *publishable* key (Settings → API Keys).
 6. Edit `config.js`:
    ```js
    SUPABASE_URL: "https://xxxx.supabase.co",
    SUPABASE_ANON_KEY: "eyJ...",
    ALLOWED_EMAIL_DOMAIN: "alefeducation.com",
    ```
-   Commit and push. The anon key is designed to be public; row-level security in `schema.sql` is what protects the data.
+   Commit and push. The publishable key is designed to be public; row-level security in `schema.sql` is what protects the data.
 7. Open the site. Enter a work email, click the link in the inbox, and the feature list appears.
 
 Optional later: **Authentication → Providers → Azure** to add Microsoft 365 sign-in (needs an Azure app registration from IT). Nothing in the app changes.
