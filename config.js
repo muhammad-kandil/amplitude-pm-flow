@@ -7,7 +7,6 @@ window.PM_FLOW_CONFIG = {
   ALLOWED_EMAIL_DOMAIN: "alefeducation.com",
   MICROSOFT_SSO: false,        // set true once the Azure provider is enabled in Supabase (Authentication → Providers → Azure)
   CONTACTS: {
-    cohorts: "Fakhry · Hari",
-    governance: "Kandil"
+    cohorts: "Fakhry · Hari"
   }
 };

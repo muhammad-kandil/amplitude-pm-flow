@@ -398,7 +398,7 @@ const Screens={
     `<div class="card-body"><div class="checks">${c.map(x=>`<div class="check auto ${x.on?'on':''}"><span class="cb"></span><span><span class="ct">${esc(x.t)}</span></span></div>`).join('')}</div>
     ${check('tog','released',d.released,'Released','Set a reminder for one month from today: go back and look. Did the number move? That is the loop closing, and the only reason any of this happened.')}
     ${d.released&&d.releasedAt?`<div class="note ok">Released ${esc(new Date(d.releasedAt).toLocaleDateString())}. Check the dashboard on <b>${esc(new Date(new Date(d.releasedAt).getTime()+30*864e5).toLocaleDateString())}</b>.</div>`:''}
-    <div class="q"><div class="label">Who to ask</div><div class="contacts"><div class="contact"><b>${esc(CFG.CONTACTS?CFG.CONTACTS.cohorts:'Analytics')}</b><span>Cohorts and Session Replay setup</span></div><div class="contact"><b>${esc(CFG.CONTACTS?CFG.CONTACTS.governance:'Governance')}</b><span>Governance, naming, the feature map</span></div><div class="contact"><b>Quotas</b><span>300k MTU/month · 10,000 session replays/month</span></div></div></div>
+    <div class="q"><div class="label">Who to ask</div><div class="contacts"><div class="contact"><b>${esc(CFG.CONTACTS?CFG.CONTACTS.cohorts:'Analytics')}</b><span>Cohorts and Session Replay setup</span></div></div></div>
     </div>`; }
 };
 
