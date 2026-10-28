@@ -68,7 +68,7 @@ const GLOSSARY=[
   ['Event','One thing a user did, recorded with a name, e.g. gamified-assessments-opened. Every moment in your journey becomes one event.'],
   ['Autocapture','Amplitude recording clicks, page views and form submits by itself, without a developer writing code. It only sees real buttons, links and inputs.'],
   ['Name tag (data-testid)','A hidden label the developer puts on a button or link so Amplitude can tell it apart reliably, in every language. Looks like feature-action-btn.'],
-  ['Code event','An event the developer sends from the code when something happens that the page cannot see (a notification, a save confirmed by the server, anything on mobile).'],
+  ['Code event','An event the developer sends from the code when something happens that the page cannot see (a notification, a save confirmed by the server).'],
   ['Property','A detail attached to an event, e.g. grade, subject, class-id. Needed to break a chart down.'],
   ['Cohort','A saved group of users, e.g. “Target Teachers” or “Adopters”. Charts are filtered to a cohort so numbers are not diluted by admins and test accounts.'],
   ['Segmentation chart','Counts how many users (or how many times) something happened, over time. “How many teachers … each week?”'],
@@ -338,7 +338,7 @@ const Screens={
     `<div class="card-body">${d.journey.length?`<div class="order">${d.journey.map((m,i)=>`<div class="step"><span class="idx">${i+1}</span><span class="t">${esc(N.label(m))}</span>
       <div class="row"><span class="rl">The page…</span>
         <button class="choice sm yes ${m.where==='page'?'on':''}" data-mwhere="${i}:page">sees it (a real button, link, view or submit)</button>
-        <button class="choice sm no ${m.where==='code'?'on':''}" data-mwhere="${i}:code">cannot see it (happens in the code, a notification, mobile)</button>
+        <button class="choice sm no ${m.where==='code'?'on':''}" data-mwhere="${i}:code">cannot see it (happens in the code: a notification, a save confirmed by the server)</button>
         <button class="choice sm maybe ${m.where==='unsure'?'on':''}" data-mwhere="${i}:unsure">not sure — ask the developer</button></div>
       ${m.where?`<div class="row"><span class="rl">Generated</span><span class="gen">${esc(m.where==='code'?N.ev(d,m):N.tid(d,m))}</span><button class="linkbtn" data-more="${m.id}">${moreOpen(m)?'Clear extra options':'More options'}</button></div>`:''}
       ${m.where&&moreOpen(m)?`${m.where!=='code'?`<div class="row"><span class="rl">Element type</span>${EL_TYPES.map(e=>`<button class="choice sm ${(m.el||'btn')===e.v?'on':''}" data-mel="${i}:${e.v}">${e.l} <code>-${e.v}</code></button>`).join('')}</div>`:''}
@@ -357,12 +357,12 @@ const Screens={
         <div><button class="btn" id="addq">Add question</button></div></div>
       <div class="kit"><div class="kit-head"><div><span class="kt">Paste onto the epic</span><span class="ks">Questions, numbered, as they will appear on the dashboard.</span></div><button class="copy" data-copy="q">Copy</button></div><div class="out">${esc(qText(d))}</div></div>
     </div>`; },
-  jira(d){ return head('Step 7 · At refinement, before the story is pointed','The Jira story for the developer','Paste this into the story at refinement. Ask at refinement and the answer is cheap; ask at code review and you are asking for a new ticket, a new sprint, and a conversation about priority. Twenty seconds of questions to the developer: “can you get these from the page, or do they live in the code?”, “is anything on this screen not a real button?”, “is this shipping to mobile?”','the story is in Jira with these acceptance criteria.','jira')+
+  jira(d){ return head('Step 7 · At refinement, before the story is pointed','The Jira story for the developer','Paste this into the story at refinement. Ask at refinement and the answer is cheap; ask at code review and you are asking for a new ticket, a new sprint, and a conversation about priority. Twenty seconds of questions to the developer: “can you get these from the page, or do they live in the code?”, “is anything on this screen not a real button?”','the story is in Jira with these acceptance criteria.','jira')+
     `<div class="card-body">
       ${kit('jira','Jira story — generated','Summary, Why, Acceptance criteria (one per moment), Rules, Definition of done. Jira converts the Markdown when you paste it into the description.',jiraText(d))}
       <div class="q"><div class="label">Jira key <span class="hint" style="font-weight:400">(optional)</span></div><div class="field"><input id="jkey" type="text" placeholder="e.g. CORE-1234" value="${esc(d.jira.key)}" autocomplete="off"></div></div>
       ${check('tog','jira.pasted',d.jira.pasted,'The story is in Jira with these acceptance criteria','Acceptance criteria, not a comment. The developer reads it while pointing.')}
-      <div class="note"><b>After the conversation:</b> if the developer says a moment happens in the code (no real button, confirmed by the server, mobile), go back to step 5, tap <b>cannot see it</b> for that moment, come back here and copy the story again. The text is rewritten from your answers, so never edit it by hand.</div>
+      <div class="note"><b>After the conversation:</b> if the developer says a moment happens in the code (no real button, or confirmed by the server), go back to step 5, tap <b>cannot see it</b> for that moment, come back here and copy the story again. The text is rewritten from your answers, so never edit it by hand.</div>
     </div>`; },
   dev(d){ const page=d.journey.filter(m=>m.where!=='code'), code=d.journey.filter(m=>m.where!=='page');
     return head('Step 8 · Sprint','What the developer owes you','Three things. That is the whole contract. Tick each one when the pull request shows it.','all three are ticked.','dev')+
