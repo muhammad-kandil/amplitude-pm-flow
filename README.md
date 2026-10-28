@@ -41,7 +41,7 @@ That is enough for local mode.
    ALLOWED_EMAIL_DOMAIN: "alefeducation.com",
    ```
    Commit and push. The publishable key is designed to be public; row-level security in `schema.sql` is what protects the data.
-7. Open the site. Enter a work email and a password; the account is created on first use and the feature list appears.
+7. Open the site. Enter the part of the work email before the @ and a password. The first time, the app shows the full address and asks to confirm before creating the account.
 
 Forgot password: Authentication → Users → delete that user; they sign in again with a new password and keep their features (ownership is by email).
 
@@ -49,8 +49,8 @@ Optional later: **Authentication → Providers → Azure** to add Microsoft 365 
 
 ## 3. Who can see what
 
-- Every signed-in person can read the **Feature map** (all features, status, owner).
-- Only the owner can edit or delete their own features.
+- PMs see only their own features.
+- **Admins** (rows in the `admins` table, Table Editor → admins) see the **Feature map** with every feature and can open and edit any of them. Run `supabase/003_admins.sql` once; add admins by inserting their email.
 - Sign-in is refused for emails outside the allowed domain (checked in the page and enforced in the database).
 - `feature_map` is a plain SQL view, so it can be connected to Power BI or exported if the map should live elsewhere too.
 

@@ -67,24 +67,30 @@ const Store={
     if(CFG.SUPABASE_URL&&CFG.SUPABASE_ANON_KEY&&window.supabase){
       this.mode='cloud';
       this.sb=window.supabase.createClient(CFG.SUPABASE_URL,CFG.SUPABASE_ANON_KEY);
-      const {data}=await this.sb.auth.getSession(); this.user=data.session?data.session.user:null;
-      this.sb.auth.onAuthStateChange((_e,session)=>{const was=!!this.user; this.user=session?session.user:null; if(was!==!!this.user){ App.view=this.user?'list':'signin'; App.cur=null; App.render(); }});
+      const {data}=await this.sb.auth.getSession(); this.user=data.session?data.session.user:null; await this.refreshAdmin();
+      this.sb.auth.onAuthStateChange(async(_e,session)=>{const was=!!this.user; this.user=session?session.user:null; if(was!==!!this.user){ await this.refreshAdmin(); App.view=this.user?'list':'signin'; App.cur=null; App.render(); }});
     }
     return this;
   },
+  isAdmin:false,
+  async refreshAdmin(){ this.isAdmin=false; if(!this.user) return; try{ const {data}=await this.sb.from('admins').select('email').limit(1); this.isAdmin=!!(data&&data.length); }catch(e){} },
+  normEmail(local){ const dom=(CFG.ALLOWED_EMAIL_DOMAIN||'').toLowerCase(); let v=(local||'').trim().toLowerCase().replace(/\s+/g,''); if(v.includes('@')) v=v.split('@')[0]; return dom?v+'@'+dom:v; },
+  // Returns 'in' when the email+password match an existing account, or 'none' when they don't (nothing is created).
   async signIn(email,password){
-    const dom=(CFG.ALLOWED_EMAIL_DOMAIN||'').toLowerCase();
-    if(dom&&!email.toLowerCase().endsWith('@'+dom)) throw new Error('Use your @'+dom+' email.');
     if(!password||password.length<8) throw new Error('Password needs at least 8 characters.');
     const r=await this.sb.auth.signInWithPassword({email,password});
     if(!r.error) return 'in';
-    if(!/invalid login credentials/i.test(r.error.message)) throw r.error;
-    // No account yet → create it with this password (email confirmation is off).
+    if(/invalid login credentials/i.test(r.error.message)) return 'none';
+    throw r.error;
+  },
+  // Only called after the person confirmed the address on screen.
+  async createAccount(email,password){
     const s=await this.sb.auth.signUp({email,password});
-    if(s.error){ if(/already registered/i.test(s.error.message)) throw new Error('Wrong password for this email. Ask Kandil to reset it.'); throw s.error; }
-    if(!s.data.session) throw new Error('Account created but no session returned — check that "Confirm email" is off in Supabase.');
+    if(s.error){ if(/already registered/i.test(s.error.message)) throw new Error('This email already has an account, so the password was wrong. Ask an admin to reset it.'); throw s.error; }
+    if(!s.data.session) throw new Error('Account created but not signed in — check that “Confirm email” is off in Supabase.');
     return 'new';
   },
+  async signInMicrosoft(){ const {error}=await this.sb.auth.signInWithOAuth({provider:'azure',options:{scopes:'email openid profile',redirectTo:location.origin+location.pathname}}); if(error) throw error; },
   async signOut(){ await this.sb.auth.signOut(); },
   _local(){ try{ return JSON.parse(localStorage.getItem(this.LKEY)||'[]'); }catch(e){ return []; } },
   _setLocal(arr){ try{ localStorage.setItem(this.LKEY,JSON.stringify(arr)); }catch(e){} },
@@ -95,13 +101,14 @@ const Store={
   },
   async listAll(){
     if(this.mode==='local') return this._local();
-    const {data,error}=await this.sb.from('features').select('id,title,owner_email,status,updated_at,data').order('updated_at',{ascending:false});
+    const {data,error}=await this.sb.from('features').select('*').order('updated_at',{ascending:false});
     if(error) throw error; return data;
   },
   async save(f){
     f.updated_at=new Date().toISOString();
     if(this.mode==='local'){ const arr=this._local(); const i=arr.findIndex(x=>x.id===f.id); if(i>=0) arr[i]=f; else arr.push(f); this._setLocal(arr); return; }
-    const row={id:f.id,owner:this.user.id,owner_email:this.user.email,title:f.title,status:f.status,data:f.data,updated_at:f.updated_at};
+    if(!f.owner_email||f.owner_email==='local') f.owner_email=this.user.email;
+    const row={id:f.id,owner:f.owner||this.user.id,owner_email:f.owner_email,title:f.title,status:f.status,data:f.data,updated_at:f.updated_at};
     const {error}=await this.sb.from('features').upsert(row); if(error) throw error;
   },
   async remove(id){
@@ -369,9 +376,9 @@ const App={
   renderSave(){ const el=$('#saveState'); if(el){ el.textContent=this.saveState; el.className='savestate'+(this.saveState==='Saved'?' ok':''); } },
   async render(){
     const top=$('#topbar');
-    const acct = Store.mode==='cloud' ? (Store.user?`<span class="pill">${esc(Store.user.email)}</span><button class="linkbtn" id="signout">Sign out</button>`:'') : `<span class="pill" title="Add Supabase keys in config.js to turn on sign-in">Saving in this browser only</span>`;
+    const acct = Store.mode==='cloud' ? (Store.user?`${Store.isAdmin?'<span class="pill" style="color:var(--accent);border-color:var(--accent-line)">Admin</span>':''}<span class="pill">${esc(Store.user.email)}</span><button class="linkbtn" id="signout">Sign out</button>`:'') : `<span class="pill" title="Add Supabase keys in config.js to turn on sign-in">Saving in this browser only</span>`;
     top.innerHTML=`<div class="brand"><div class="mark">A</div><div><h1>Amplitude PM Flow</h1><small>From the gate on the epic to a dashboard nobody has to explain</small></div></div>
-      <div class="tabs">${this.view!=='signin'?`<button class="tab ${this.view==='list'?'on':''}" data-view="list">My features</button><button class="tab ${this.view==='map'?'on':''}" data-view="map">Feature map</button>`:''}${this.view==='feature'?`<span class="savestate" id="saveState">${esc(this.saveState)}</span>`:''}</div>
+      <div class="tabs">${this.view!=='signin'?`<button class="tab ${this.view==='list'?'on':''}" data-view="list">My features</button>${(Store.isAdmin||Store.mode==='local')?`<button class="tab ${this.view==='map'?'on':''}" data-view="map">Feature map</button>`:''}`:''}${this.view==='feature'?`<span class="savestate" id="saveState">${esc(this.saveState)}</span>`:''}</div>
       <div class="acct">${acct}</div>`;
     top.querySelectorAll('[data-view]').forEach(b=>b.onclick=async()=>{if(this.cur&&this.saveTimer) await this.flush(); this.view=b.dataset.view;this.cur=null;this.render();});
     const so=$('#signout'); if(so) so.onclick=async()=>{await Store.signOut(); this.view='signin'; this.cur=null; this.render();};
@@ -382,13 +389,29 @@ const App={
     return this.renderFeature(main);
   },
   renderSignin(main){
-    main.innerHTML=`<div class="signin"><h2>Sign in</h2><p>Your work email and a password of your choice. The first time, your account is created on the spot; after that, the same two fields sign you in.</p>
-      <div class="field" style="flex-direction:column;align-items:stretch"><input id="email" type="email" class="wide" placeholder="you@${esc(CFG.ALLOWED_EMAIL_DOMAIN||'company.com')}" autocomplete="email"><input id="pw" type="password" class="wide" placeholder="Password (8+ characters)" autocomplete="current-password"></div>
+    const dom=CFG.ALLOWED_EMAIL_DOMAIN||'company.com'; let last=''; try{ last=localStorage.getItem('pm-flow-last-email')||''; }catch(e){}
+    const local=last.includes('@')?last.split('@')[0]:last;
+    main.innerHTML=`<div class="signin"><h2>Sign in</h2><p>Your work email and a password of your choice.</p>
+      <div class="field" style="flex-direction:column;align-items:stretch;gap:8px">
+        <div style="display:flex;align-items:center;gap:0;border:1.5px solid var(--line);border-radius:10px;overflow:hidden"><input id="email" type="text" style="border:0;border-radius:0;flex:1;min-width:0" placeholder="firstname.lastname" value="${esc(local)}" autocomplete="username" autocapitalize="off" spellcheck="false"><span style="padding:0 12px;color:var(--muted);white-space:nowrap;background:var(--bg);align-self:stretch;display:flex;align-items:center">@${esc(dom)}</span></div>
+        <input id="pw" type="password" class="wide" placeholder="Password (8+ characters)" autocomplete="current-password"></div>
       <div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn primary" id="signBtn">Sign in</button><span class="status" id="signMsg"></span></div>
+      <div id="createBox" hidden style="margin-top:18px;padding:14px;border:1px solid var(--warn);border-radius:12px;background:var(--warn-soft)">
+        <div style="font-weight:600">No account matches that email and password.</div>
+        <div class="hint" style="margin:6px 0 10px">If this is your first time, check the address below carefully, repeat the password and create the account. If you already have an account, the password was wrong.</div>
+        <div class="gen" id="confirmEmail" style="font-size:15px;margin-bottom:10px"></div>
+        <input id="pw2" type="password" class="wide" placeholder="Repeat the password" autocomplete="new-password" style="width:100%;margin-bottom:10px">
+        <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn primary" id="createBtn">Yes, create my account</button><button class="btn" id="fixBtn">Let me fix the email</button></div></div>
       ${CFG.MICROSOFT_SSO?`<div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--line)"><button class="btn" id="msBtn">Continue with Microsoft 365</button></div>`:''}</div>`;
-    const go=async()=>{const em=$('#email').value.trim(), pw=$('#pw').value; const msg=$('#signMsg'); if(!em||!pw) return; try{ msg.textContent='Signing in…'; const r=await Store.signIn(em,pw); msg.textContent=r==='new'?'Account created.':'Signed in.'; }catch(e){ msg.textContent=e.message; }};
+    const msg=$('#signMsg'), box=$('#createBox');
+    const go=async()=>{const em=Store.normEmail($('#email').value), pw=$('#pw').value; if(!em.split('@')[0]||!pw) return; box.hidden=true;
+      try{ msg.textContent='Signing in…'; const r=await Store.signIn(em,pw); if(r==='in'){ msg.textContent='Signed in.'; try{localStorage.setItem('pm-flow-last-email',em);}catch(e){} } else { msg.textContent=''; $('#confirmEmail').textContent=em; $('#pw2').value=''; box.hidden=false; $('#pw2').focus(); } }
+      catch(e){ msg.textContent=e.message; }};
     $('#signBtn').onclick=go; $('#pw').onkeydown=e=>{if(e.key==='Enter')go();}; $('#email').onkeydown=e=>{if(e.key==='Enter')$('#pw').focus();};
-    const ms=$('#msBtn'); if(ms) ms.onclick=async()=>{ try{ await Store.signInMicrosoft(); }catch(e){ $('#signMsg').textContent=e.message; } };
+    $('#fixBtn').onclick=()=>{box.hidden=true; $('#email').focus(); $('#email').select();};
+    $('#createBtn').onclick=async()=>{const em=Store.normEmail($('#email').value), pw=$('#pw').value, pw2=$('#pw2').value; if(pw!==pw2){ msg.textContent='The two passwords differ.'; return; }
+      try{ msg.textContent='Creating…'; await Store.createAccount(em,pw); try{localStorage.setItem('pm-flow-last-email',em);}catch(e){} msg.textContent='Account created.'; }catch(e){ msg.textContent=e.message; box.hidden=true; }};
+    const ms=$('#msBtn'); if(ms) ms.onclick=async()=>{ try{ await Store.signInMicrosoft(); }catch(e){ msg.textContent=e.message; } };
   },
   renderList(main){
     const rows=this.features.map(f=>{const d=f.data; const n=STEPS.length; const cur=statusOf(d);
@@ -401,10 +424,11 @@ const App={
   },
   renderMap(main){
     const by={}; this.all.forEach(f=>{const s=f.status==='not-needed'?'Not needed':f.status==='released'?'Released':'In progress'; by[s]=(by[s]||0)+1;});
-    const rows=this.all.map(f=>`<tr><td><b>${esc(f.title||'(untitled)')}</b></td><td>${esc(f.data&&f.data.productLine||'')}</td><td>${esc(f.data&&(f.data.roles||[]).join(', ')||'')}</td><td>${esc(statusLabel(f.status))}</td><td>${esc(f.owner_email||'')}</td><td>${esc(new Date(f.updated_at).toLocaleDateString())}</td></tr>`).join('');
-    main.innerHTML=`<div style="margin:20px 0 14px"><h2 style="font-size:22px">Feature map</h2><p class="status">Every feature anyone has run through the flow, with where it stands. ${Store.mode==='local'?'Local mode: only this browser’s features.':''}</p></div>
+    const rows=this.all.map(f=>`<tr data-openany="${f.id}" style="cursor:pointer"><td><b>${esc(f.title||'(untitled)')}</b></td><td>${esc(f.data&&f.data.productLine||'')}</td><td>${esc(f.data&&(f.data.roles||[]).join(', ')||'')}</td><td>${esc(statusLabel(f.status))}</td><td>${esc(f.owner_email||'')}</td><td>${esc(new Date(f.updated_at).toLocaleDateString())}</td></tr>`).join('');
+    main.innerHTML=`<div style="margin:20px 0 14px"><h2 style="font-size:22px">Feature map</h2><p class="status">Every feature anyone has run through the flow, with where it stands. Admins only. ${Store.mode==='local'?'Local mode: only this browser’s features.':''}</p></div>
       <div class="stat-row" style="margin-bottom:14px"><div class="stat"><div class="v">${this.all.length}</div><div class="l">features</div></div><div class="stat"><div class="v">${by['Released']||0}</div><div class="l">released with a dashboard</div></div><div class="stat"><div class="v">${by['In progress']||0}</div><div class="l">in progress</div></div><div class="stat"><div class="v">${by['Not needed']||0}</div><div class="l">not needed</div></div></div>
-      ${rows?`<div class="card" style="padding:4px 8px"><div class="tbl-wrap"><table class="tbl"><tr><th>Feature</th><th>Product line</th><th>Users</th><th>Status</th><th>Owner</th><th>Updated</th></tr>${rows}</table></div></div>`:`<div class="empty">Nothing on the map yet.</div>`}`;
+      ${rows?`<div class="card" style="padding:4px 8px"><div class="tbl-wrap"><table class="tbl"><tr><th>Feature</th><th>Product line</th><th>Users</th><th>Status</th><th>Owner</th><th>Updated</th></tr>${rows}</table></div></div><p class="status" style="margin-top:8px">Tap a row to open it.</p>`:`<div class="empty">Nothing on the map yet.</div>`}`;
+    main.querySelectorAll('[data-openany]').forEach(r=>r.onclick=()=>{this.cur=this.all.find(x=>x.id===r.dataset.openany); this.cur.data=Object.assign(blankData(),this.cur.data); this.view='feature'; this.saveState='Saved'; this.render();});
   },
   renderFeature(main){
     const f=this.cur, d=f.data, i=d.step;
