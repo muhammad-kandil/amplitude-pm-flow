@@ -50,7 +50,7 @@ Optional later: **Authentication → Providers → Azure** to add Microsoft 365 
 ## 3. Who can see what
 
 - PMs see only their own features.
-- **Admins** (rows in the `admins` table, Table Editor → admins) see the **Feature map** with every feature and can open and edit any of them. Run `supabase/003_admins.sql` once; add admins by inserting their email.
+- **Admins** see the **Feature map** with every feature, can open and edit any of them, and manage roles on the **Users** tab (everyone who has signed in, with a PM / Admin switch). Run `supabase/003_admins.sql` then `supabase/004_profiles.sql` once; the first admin is seeded in 003. An admin cannot change their own role, so there is always at least one.
 - Sign-in is refused for emails outside the allowed domain (checked in the page and enforced in the database).
 - `feature_map` is a plain SQL view, so it can be connected to Power BI or exported if the map should live elsewhere too.
 

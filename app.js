@@ -73,7 +73,9 @@ const Store={
     return this;
   },
   isAdmin:false,
-  async refreshAdmin(){ this.isAdmin=false; if(!this.user) return; try{ const {data}=await this.sb.from('admins').select('email').limit(1); this.isAdmin=!!(data&&data.length); }catch(e){} },
+  async refreshAdmin(){ this.isAdmin=false; if(!this.user) return; try{ await this.sb.rpc('touch_profile'); const {data}=await this.sb.from('profiles').select('role').eq('email',(this.user.email||'').toLowerCase()).maybeSingle(); this.isAdmin=!!(data&&data.role==='admin'); }catch(e){} },
+  async listUsers(){ const {data,error}=await this.sb.from('profiles').select('*').order('last_seen',{ascending:false}); if(error) throw error; return data; },
+  async setRole(email,role){ const {error}=await this.sb.from('profiles').update({role}).eq('email',email); if(error) throw error; },
   normEmail(local){ const dom=(CFG.ALLOWED_EMAIL_DOMAIN||'').toLowerCase(); let v=(local||'').trim().toLowerCase().replace(/\s+/g,''); if(v.includes('@')) v=v.split('@')[0]; return dom?v+'@'+dom:v; },
   // Returns 'in' when the email+password match an existing account, or 'none' when they don't (nothing is created).
   async signIn(email,password){
@@ -378,7 +380,7 @@ const App={
     const top=$('#topbar');
     const acct = Store.mode==='cloud' ? (Store.user?`${Store.isAdmin?'<span class="pill" style="color:var(--accent);border-color:var(--accent-line)">Admin</span>':''}<span class="pill">${esc(Store.user.email)}</span><button class="linkbtn" id="signout">Sign out</button>`:'') : `<span class="pill" title="Add Supabase keys in config.js to turn on sign-in">Saving in this browser only</span>`;
     top.innerHTML=`<div class="brand"><div class="mark">A</div><div><h1>Amplitude PM Flow</h1><small>From the gate on the epic to a dashboard nobody has to explain</small></div></div>
-      <div class="tabs">${this.view!=='signin'?`<button class="tab ${this.view==='list'?'on':''}" data-view="list">My features</button>${(Store.isAdmin||Store.mode==='local')?`<button class="tab ${this.view==='map'?'on':''}" data-view="map">Feature map</button>`:''}`:''}${this.view==='feature'?`<span class="savestate" id="saveState">${esc(this.saveState)}</span>`:''}</div>
+      <div class="tabs">${this.view!=='signin'?`<button class="tab ${this.view==='list'?'on':''}" data-view="list">My features</button>${(Store.isAdmin||Store.mode==='local')?`<button class="tab ${this.view==='map'?'on':''}" data-view="map">Feature map</button>`:''}${Store.isAdmin?`<button class="tab ${this.view==='users'?'on':''}" data-view="users">Users</button>`:''}`:''}${this.view==='feature'?`<span class="savestate" id="saveState">${esc(this.saveState)}</span>`:''}</div>
       <div class="acct">${acct}</div>`;
     top.querySelectorAll('[data-view]').forEach(b=>b.onclick=async()=>{if(this.cur&&this.saveTimer) await this.flush(); this.view=b.dataset.view;this.cur=null;this.render();});
     const so=$('#signout'); if(so) so.onclick=async()=>{await Store.signOut(); this.view='signin'; this.cur=null; this.render();};
@@ -386,6 +388,7 @@ const App={
     if(this.view==='signin') return this.renderSignin(main);
     if(this.view==='list'){ await this.loadList(); return this.renderList(main); }
     if(this.view==='map'){ await this.loadAll(); return this.renderMap(main); }
+    if(this.view==='users'){ await this.loadAll(); return this.renderUsers(main); }
     return this.renderFeature(main);
   },
   renderSignin(main){
@@ -429,6 +432,16 @@ const App={
       <div class="stat-row" style="margin-bottom:14px"><div class="stat"><div class="v">${this.all.length}</div><div class="l">features</div></div><div class="stat"><div class="v">${by['Released']||0}</div><div class="l">released with a dashboard</div></div><div class="stat"><div class="v">${by['In progress']||0}</div><div class="l">in progress</div></div><div class="stat"><div class="v">${by['Not needed']||0}</div><div class="l">not needed</div></div></div>
       ${rows?`<div class="card" style="padding:4px 8px"><div class="tbl-wrap"><table class="tbl"><tr><th>Feature</th><th>Product line</th><th>Users</th><th>Status</th><th>Owner</th><th>Updated</th></tr>${rows}</table></div></div><p class="status" style="margin-top:8px">Tap a row to open it.</p>`:`<div class="empty">Nothing on the map yet.</div>`}`;
     main.querySelectorAll('[data-openany]').forEach(r=>r.onclick=()=>{this.cur=this.all.find(x=>x.id===r.dataset.openany); this.cur.data=Object.assign(blankData(),this.cur.data); this.view='feature'; this.saveState='Saved'; this.render();});
+  },
+  async renderUsers(main){
+    let users=[]; try{ users=await Store.listUsers(); }catch(e){ toast('Could not load users: '+e.message); }
+    const counts={}; this.all.forEach(f=>{const k=(f.owner_email||'').toLowerCase(); counts[k]=(counts[k]||0)+1;});
+    const me=(Store.user.email||'').toLowerCase();
+    const rows=users.map(u=>`<tr><td><b>${esc(u.email)}</b>${u.email===me?' <span class="tag">you</span>':''}</td><td>${counts[u.email]||0}</td><td>${esc(new Date(u.first_seen).toLocaleDateString())}</td><td>${esc(new Date(u.last_seen).toLocaleString())}</td>
+      <td><div class="choices">${['pm','admin'].map(r=>`<button class="choice sm ${u.role===r?'on':''}" data-role-set="${esc(u.email)}:${r}" ${u.email===me?'disabled':''}>${r==='pm'?'PM':'Admin'}</button>`).join('')}</div></td></tr>`).join('');
+    main.innerHTML=`<div style="margin:20px 0 14px"><h2 style="font-size:22px">Users</h2><p class="status">Everyone who has signed in. PMs see only their own features; admins see everything and manage roles here. You cannot change your own role.</p></div>
+      <div class="card" style="padding:4px 8px"><div class="tbl-wrap"><table class="tbl"><tr><th>Email</th><th>Features</th><th>First sign-in</th><th>Last sign-in</th><th>Role</th></tr>${rows||'<tr><td colspan="5">No one has signed in yet.</td></tr>'}</table></div></div>`;
+    main.querySelectorAll('[data-role-set]').forEach(b=>b.onclick=async()=>{const [email,role]=b.dataset.roleSet.split(':'); try{ await Store.setRole(email,role); toast(`${email} is now ${role==='admin'?'an admin':'a PM'}`); this.render(); }catch(e){ toast('Could not change role: '+e.message); }});
   },
   renderFeature(main){
     const f=this.cur, d=f.data, i=d.step;
