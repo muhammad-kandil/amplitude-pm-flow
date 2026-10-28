@@ -62,7 +62,7 @@ const newFeature=()=>({id:uid(),title:'',owner_email:Store.user?Store.user.email
 const uid=()=>(crypto.randomUUID?crypto.randomUUID():'f'+Date.now().toString(36)+Math.random().toString(36).slice(2,8));
 
 const Store={
-  mode:'local', user:null, sb:null, LKEY:'pm-bible-features',
+  mode:'local', user:null, sb:null, LKEY:'pm-flow-features',
   async init(){
     if(CFG.SUPABASE_URL&&CFG.SUPABASE_ANON_KEY&&window.supabase){
       this.mode='cloud';
