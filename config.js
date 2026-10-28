@@ -5,6 +5,7 @@ window.PM_FLOW_CONFIG = {
   SUPABASE_URL: "https://zssywhvpplfihbvymgtz.supabase.co",
   SUPABASE_ANON_KEY: "sb_publishable_mkdTJMtEggkDwfJJCVV8Fg_sR7lpNVv", // publishable key (safe to publish; row-level security protects the data)
   ALLOWED_EMAIL_DOMAIN: "alefeducation.com",
+  SHOW_COMPARE_BY: false,      // "Compare by" breakdown chips on step 5 (off for now; properties per moment still exist under More options)
   MICROSOFT_SSO: false,        // set true once the Azure provider is enabled in Supabase (Authentication → Providers → Azure)
   CONTACTS: {
     cohorts: "Fakhry · Hari"

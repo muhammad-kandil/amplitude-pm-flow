@@ -49,7 +49,7 @@ const EXAMPLE=()=>({gate:'yes',feature:'Gamified Assessments',productLine:'Gamif
     {id:'ex4',v:'joined',where:'code',el:'btn',props:['class-id'],role:'Student'},
     {id:'ex5',v:'question-answered',where:'page',el:'btn',props:[],role:'Student'},
     {id:'ex6',v:'completed',where:'code',el:'btn',props:['score','duration-seconds'],role:'Student'}],
-  compare:['subject','grade'],qOff:[],custom:[{id:'exq1',text:'Which assessment type is most often turned into a game?',type:'breakdown'}],
+  compare:[],qOff:[],custom:[{id:'exq1',text:'Which assessment type is most often turned into a game?',type:'breakdown'}],
   jira:{pasted:true,key:'GA-412'},dev:{testids:true,events:true,promise:true},demo:{},build:{},released:false,releasedAt:null,step:0});
 const EXAMPLE_NOTES={
   gate:'Gamified Assessments has a teacher screen and a student screen, so the answer is Yes → Trackable. A backend job that recalculates scores overnight would be No → Not needed.',
@@ -343,7 +343,7 @@ const Screens={
       ${m.where?`<div class="row"><span class="rl">Generated</span><span class="gen">${esc(m.where==='code'?N.ev(d,m):N.tid(d,m))}</span><button class="linkbtn" data-more="${m.id}">${moreOpen(m)?'Clear extra options':'More options'}</button></div>`:''}
       ${m.where&&moreOpen(m)?`${m.where!=='code'?`<div class="row"><span class="rl">Element type</span>${EL_TYPES.map(e=>`<button class="choice sm ${(m.el||'btn')===e.v?'on':''}" data-mel="${i}:${e.v}">${e.l} <code>-${e.v}</code></button>`).join('')}</div>`:''}
       <div class="row"><span class="rl">Extra properties</span><span class="hint" style="flex-basis:100%">Details the chart will need that the page does not know by itself. Skip if unsure.</span>${PROPS.map(p=>`<button class="choice sm ${(m.props||[]).includes(p)?'on':''}" data-mprop="${i}:${p}">${p}</button>`).join('')}</div>`:''}</div>`).join('')}</div>`:`<div class="note warn">Add the journey first (step 4).</div>`}
-      <div class="q"><div class="label">Compare by <span class="hint" style="font-weight:400">(optional)</span></div><div class="hint">Breakdowns you will want on the dashboard. These become a property on every event.</div>${chips(CATEGORICAL,d.compare,'cmp','sm')}</div>
+      ${CFG.SHOW_COMPARE_BY?`<div class="q"><div class="label">Compare by <span class="hint" style="font-weight:400">(optional)</span></div><div class="hint">Breakdowns you will want on the dashboard. These become a property on every event.</div>${chips(CATEGORICAL,d.compare,'cmp','sm')}</div>`:''}
     </div>`; },
   questions(d){ const sug=suggested(d);
     return head('Step 6 · Written on the epic','The questions','Not events. Each one is a chart title. If a question would not change a decision you make, switch it off. Add your own; five or six in total is the rule.',`at least five questions are on. You have <b>${allQuestions(d).length}</b>.`,'questions')+
