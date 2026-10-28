@@ -78,6 +78,7 @@ const Store={
     const {error}=await this.sb.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin+location.pathname}});
     if(error) throw error;
   },
+  async signInMicrosoft(){ const {error}=await this.sb.auth.signInWithOAuth({provider:'azure',options:{scopes:'email openid profile',redirectTo:location.origin+location.pathname}}); if(error) throw error; },
   async signOut(){ await this.sb.auth.signOut(); },
   _local(){ try{ return JSON.parse(localStorage.getItem(this.LKEY)||'[]'); }catch(e){ return []; } },
   _setLocal(arr){ try{ localStorage.setItem(this.LKEY,JSON.stringify(arr)); }catch(e){} },
@@ -377,7 +378,9 @@ const App={
   renderSignin(main){
     main.innerHTML=`<div class="signin"><h2>Sign in</h2><p>Enter your work email. We send a sign-in link; no password.</p>
       <div class="field"><input id="email" type="email" class="wide" placeholder="you@${esc(CFG.ALLOWED_EMAIL_DOMAIN||'company.com')}" autocomplete="email"></div>
-      <div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn primary" id="sendLink">Send me the link</button><span class="status" id="signMsg"></span></div></div>`;
+      <div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn primary" id="sendLink">Send me the link</button><span class="status" id="signMsg"></span></div>
+      ${CFG.MICROSOFT_SSO?`<div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--line)"><button class="btn" id="msBtn">Continue with Microsoft 365</button></div>`:''}</div>`;
+    const ms=$('#msBtn'); if(ms) ms.onclick=async()=>{ try{ await Store.signInMicrosoft(); }catch(e){ $('#signMsg').textContent=e.message; } };
     const go=async()=>{const em=$('#email').value.trim(); const msg=$('#signMsg'); if(!em) return; try{ msg.textContent='Sending…'; await Store.signIn(em); msg.textContent='Check your inbox and open the link on this device.'; }catch(e){ msg.textContent=e.message; }};
     $('#sendLink').onclick=go; $('#email').onkeydown=e=>{if(e.key==='Enter')go();};
   },
