@@ -15,12 +15,12 @@ const PRODUCT_LINES=['Core','Pathways','Gamified Assessments','Mobile & Connect'
 const ROLES=['Teacher','Student','Parent','Admin','Principal'];
 const TENANTS=['UAE MOE (ADEK / NCE)','Private schools','Indonesia (IDN)'];
 const MOMENTS=[
-  {v:'opened',l:'Opened it'},{v:'started',l:'Started'},{v:'created',l:'Created'},{v:'submitted',l:'Submitted'},{v:'saved',l:'Saved'},
+  {v:'opened',l:'Opened it'},{v:'searched',l:'Searched / filtered'},{v:'viewed',l:'Viewed an item'},{v:'started',l:'Started'},{v:'created',l:'Created'},{v:'submitted',l:'Submitted'},{v:'saved',l:'Saved'},
   {v:'completed',l:'Completed'},{v:'joined',l:'Joined'},{v:'edited',l:'Edited'},{v:'deleted',l:'Deleted'},{v:'file-uploaded',l:'Uploaded a file'},
   {v:'exported',l:'Exported'},{v:'shared',l:'Shared / invited'},{v:'notification-received',l:'Got a notification'},{v:'question-answered',l:'Answered a question'},
   {v:'result-viewed',l:'Saw the result'},{v:'failed',l:'Hit an error'},{v:'dismissed',l:'Dismissed it'},{v:'retried',l:'Retried'},
 ];
-const VERB={opened:'open',started:'start',created:'create',submitted:'submit',saved:'save',completed:'complete',joined:'join',edited:'edit',deleted:'delete',
+const VERB={opened:'open',searched:'search in',viewed:'view an item in',started:'start',created:'create',submitted:'submit',saved:'save',completed:'complete',joined:'join',edited:'edit',deleted:'delete',
   'file-uploaded':'upload a file in',exported:'export from',shared:'share','notification-received':'get the notification for','question-answered':'answer a question in',
   'result-viewed':'see the result of',failed:'hit an error in',dismissed:'dismiss',retried:'retry'};
 const EL_TYPES=[{v:'btn',l:'Button'},{v:'link',l:'Link'},{v:'toggle',l:'Toggle / checkbox'},{v:'dropdown',l:'Dropdown'},{v:'input',l:'Text field'}];
@@ -167,7 +167,7 @@ const N={
   r1:d=>N.role(d).toLowerCase(),
   label:m=>(MOMENTS.find(x=>x.v===m.v)||{l:m.v}).l,
   ev:(d,m)=>(d.roles.length>1&&m.role?kebab(m.role)+'-':'')+N.slug(d)+'-'+m.v,
-  tid:(d,m)=>N.slug(d)+'-'+m.v+'-'+(m.el||'btn'),
+  tid:(d,m)=>m.tag?m.tag:N.slug(d)+'-'+m.v+'-'+(m.el||'btn'),
   dash:d=>`[${d.productLine||'Product Line'}] ${N.F(d)}`,
   folder:d=>`${d.productLine||'Product line'} Space › ${N.F(d)}`,
   cohorts:d=>{const scope=d.tenants.length?' – '+d.tenants.map(t=>t.split(' (')[0]).join(' + '):''; return [...(d.roles.length?d.roles:['User']).map(r=>`[Persona] Target ${r}s${scope}`),`[Team] ${N.F(d)} – Adopters`,`[Team] ${N.F(d)} – Non-adopters`];},
@@ -215,7 +215,7 @@ function jiraText(d){
   L.push('## Acceptance criteria');
   L.push('Every moment below is instrumented in ONE of two ways. (A) a real button / link / input on the page gets a stable data-testid. (B) when the page cannot see it, the code emits the Amplitude event.');
   d.journey.forEach((m,i)=>{
-    const A=`(A) data-testid ends with \`${N.slug(d)}-${m.v}-${m.el||'btn'}\` — full id per the data-testid protocol: feature-page-group-action-suffix`;
+    const A=m.tag?`(A) keep the existing data-testid \`${m.tag}\` (never rename it)`:`(A) data-testid ends with \`${N.slug(d)}-${m.v}-${m.el||'btn'}\` — full id per the data-testid protocol: feature-page-group-action-suffix`;
     const B=`(B) code event \`${N.ev(d,m)}\`${(m.props&&m.props.length)?' with properties: '+m.props.join(', '):''}`;
     const line = m.where==='page'?A : m.where==='code'?B : `${A}  OR  ${B} — developer decides`;
     L.push(`- [ ] ${i+1}. ${N.label(m)}${d.roles.length>1&&m.role?' ('+m.role+')':''} → ${line}`);
@@ -300,7 +300,7 @@ async function copyText(txt,btn){let ok=false;try{await navigator.clipboard.writ
   if(btn){const old=btn.textContent;btn.classList.add('did');btn.textContent=ok?'Copied':'Select & copy';setTimeout(()=>{btn.classList.remove('did');btn.textContent=old;},1500);} toast(ok?'Copied':'Could not copy — select the text and copy it');}
 const chips=(list,sel,attr,cls='')=>`<div class="choices">${list.map(v=>`<button class="choice ${cls} ${sel.includes(v)?'on':''}" data-${attr}="${esc(v)}">${esc(v)}</button>`).join('')}</div>`;
 const UI={showExample:false,showText:{},more:{}};
-const moreOpen=m=>!!(UI.more[m.id]||((m.props&&m.props.length)||(m.el&&m.el!=='btn')));
+const moreOpen=m=>!!(UI.more[m.id]||((m.props&&m.props.length)||(m.el&&m.el!=='btn')||m.tag));
 const head=(e,t,w,dw,k)=>`<div class="card-head"><div class="eyebrow">${e}</div><h2>${t}</h2>${w?`<p class="why">${w}</p>`:''}
   <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px">${dw?`<div class="done-when" style="margin-top:0"><b>Done when</b> ${dw}</div>`:''}${k&&EXAMPLE_NOTES[k]?`<button class="linkbtn" id="exToggle">${UI.showExample?'Hide example':'Show example'}</button>`:''}</div>
   ${k&&UI.showExample&&EXAMPLE_NOTES[k]?`<div class="note" style="margin-top:12px"><b>Worked example · Gamified Assessments.</b> ${esc(EXAMPLE_NOTES[k])}</div>`:''}</div>`;
@@ -342,6 +342,7 @@ const Screens={
         <button class="choice sm maybe ${m.where==='unsure'?'on':''}" data-mwhere="${i}:unsure">not sure — ask the developer</button></div>
       ${m.where?`<div class="row"><span class="rl">Generated</span><span class="gen">${esc(m.where==='code'?N.ev(d,m):N.tid(d,m))}</span><button class="linkbtn" data-more="${m.id}">${moreOpen(m)?'Clear extra options':'More options'}</button></div>`:''}
       ${m.where&&moreOpen(m)?`${m.where!=='code'?`<div class="row"><span class="rl">Element type</span>${EL_TYPES.map(e=>`<button class="choice sm ${(m.el||'btn')===e.v?'on':''}" data-mel="${i}:${e.v}">${e.l} <code>-${e.v}</code></button>`).join('')}</div>`:''}
+      ${m.where!=='code'?`<div class="row"><span class="rl">Existing name tag</span><input type="text" data-mtag="${i}" value="${esc(m.tag||'')}" placeholder="only if the button already has a data-testid" style="font:inherit;font-size:13px;padding:5px 9px;border:1.5px solid var(--line);border-radius:8px;background:var(--surface);color:var(--fg);min-width:0;flex:1"></div>`:''}
       <div class="row"><span class="rl">Extra properties</span><span class="hint" style="flex-basis:100%">Details the chart will need that the page does not know by itself. Skip if unsure.</span>${PROPS.map(p=>`<button class="choice sm ${(m.props||[]).includes(p)?'on':''}" data-mprop="${i}:${p}">${p}</button>`).join('')}</div>`:''}</div>`).join('')}</div>`:`<div class="note warn">Add the journey first (step 4).</div>`}
       ${CFG.SHOW_COMPARE_BY?`<div class="q"><div class="label">Compare by <span class="hint" style="font-weight:400">(optional)</span></div><div class="hint">Breakdowns you will want on the dashboard. These become a property on every event.</div>${chips(CATEGORICAL,d.compare,'cmp','sm')}</div>`:''}
     </div>`; },
@@ -521,7 +522,7 @@ const App={
     const d=this.cur.data, card=$('#card'), U=fn=>this.upd(fn);
     const ex=$('#exToggle'); if(ex) ex.onclick=()=>{UI.showExample=!UI.showExample; this.renderFeature(main);};
     card.querySelectorAll('[data-showtext]').forEach(b=>b.onclick=()=>{UI.showText[b.dataset.showtext]=!UI.showText[b.dataset.showtext]; this.renderFeature(main);});
-    card.querySelectorAll('[data-more]').forEach(b=>b.onclick=()=>{const m=d.journey.find(x=>x.id===b.dataset.more); if(moreOpen(m)){ UI.more[m.id]=false; m.props=[]; if(m.el!=='btn') m.el='btn'; this.touch(); } else UI.more[m.id]=true; this.renderFeature(main);});
+    card.querySelectorAll('[data-more]').forEach(b=>b.onclick=()=>{const m=d.journey.find(x=>x.id===b.dataset.more); if(moreOpen(m)){ UI.more[m.id]=false; m.props=[]; m.tag=''; if(m.el!=='btn') m.el='btn'; this.touch(); } else UI.more[m.id]=true; this.renderFeature(main);});
     const tb=main.querySelector('[data-terms]'); if(tb) tb.onclick=()=>this.showTerms();
     card.querySelectorAll('[data-gate]').forEach(b=>b.onclick=()=>U(x=>{x.gate=b.dataset.gate;}));
     const fi=$('#fname'); if(fi){ fi.oninput=()=>{d.feature=fi.value; const s=$('#slugOut'); if(s) s.textContent=N.slug(d); this.touch();}; fi.onblur=()=>this.renderFeature(main); fi.onkeydown=e=>{if(e.key==='Enter')fi.blur();}; }
@@ -536,6 +537,7 @@ const App={
     card.querySelectorAll('[data-mrole]').forEach(b=>b.onclick=()=>U(x=>{const [i,r]=b.dataset.mrole.split(':'); x.journey[+i].role=r;}));
     card.querySelectorAll('[data-mwhere]').forEach(b=>b.onclick=()=>U(x=>{const [i,w]=b.dataset.mwhere.split(':'); x.journey[+i].where=w;}));
     card.querySelectorAll('[data-mel]').forEach(b=>b.onclick=()=>U(x=>{const [i,e]=b.dataset.mel.split(':'); x.journey[+i].el=e;}));
+    card.querySelectorAll('[data-mtag]').forEach(inp=>{inp.oninput=()=>{d.journey[+inp.dataset.mtag].tag=inp.value.trim(); this.touch();}; inp.onblur=()=>this.renderFeature(main); inp.onkeydown=e=>{if(e.key==='Enter')inp.blur();};});
     card.querySelectorAll('[data-mprop]').forEach(b=>b.onclick=()=>U(x=>{const [i,p]=b.dataset.mprop.split(':'); const m=x.journey[+i]; m.props=m.props||[]; m.props=m.props.includes(p)?m.props.filter(v=>v!==p):[...m.props,p];}));
     card.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>U(x=>{const id=b.dataset.q; x.qOff=x.qOff.includes(id)?x.qOff.filter(v=>v!==id):[...x.qOff,id];}));
     card.querySelectorAll('[data-rmq]').forEach(b=>b.onclick=e=>{e.stopPropagation(); U(x=>{x.custom.splice(+b.dataset.rmq,1);});});
