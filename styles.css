@@ -209,3 +209,7 @@ a{color:var(--accent)}
 .q.custom{background:var(--surface);border:1.5px dashed var(--accent);border-radius:12px;padding:12px 14px}
 .btn.sm{padding:8px 14px;font-size:14px}
 .btn:disabled{opacity:.45;cursor:not-allowed}
+input.mini{font:inherit;font-size:13px;padding:5px 9px;border:1.5px solid var(--line);border-radius:8px;background:var(--surface);color:var(--fg);min-width:0;width:200px}
+input.mini:focus{border-color:var(--accent);outline:none}
+.warn-text{color:#b45309;font-weight:600}
+.row .rl:empty{min-width:0}

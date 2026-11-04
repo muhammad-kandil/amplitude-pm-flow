@@ -26,6 +26,7 @@ const VERB={opened:'open',searched:'search in',viewed:'view an item in',started:
 const verbOf=m=>VERB[m.v]||((m.l||m.v).toLowerCase().replace(/[^a-z0-9 ]/g,'')+' in');
 const STOP=new Set(['a','an','the','it','to','is','of','its','their','his','her','my','this','that']);
 const actionSlug=s=>(s||'').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim().split(' ').filter(w=>w&&!STOP.has(w)).slice(0,4).join('-');
+const COMPONENTS=['banner','card','list','header','sidebar','footer','modal','form','menu','toolbar','tab','search','filter','player','table','row'];
 const EL_TYPES=[{v:'btn',l:'Button'},{v:'link',l:'Link'},{v:'toggle',l:'Toggle / checkbox'},{v:'dropdown',l:'Dropdown'},{v:'input',l:'Text field'}];
 const PROPS=['grade','subject','tenant','school-id','class-id','assessment-type','language','entry-point','attempt-number','score','duration-seconds','status','error-code','item-count'];
 const CATEGORICAL=['grade','subject','tenant','school-id','assessment-type','language','entry-point','status'];
@@ -62,7 +63,7 @@ const EXAMPLE_NOTES={
   hidden:'“Opened” and “Started” are real buttons, so the page sees them and only a name tag is needed. “Got a notification”, “Joined” and “Completed” happen in the code, so the developer must emit those three events. That is the whole developer ticket.',
   questions:'Five suggested questions (how many teachers open it each week, what % of active teachers, where do they drop off, how long does it take, do they come back) plus one the PM added: which assessment type is most often turned into a game.',
   jira:'The PM pasted the generated story into GA-412 at refinement. The developer saw six acceptance criteria, one per moment, and knew which three needed code.',
-  dev:'The pull request showed data-testids like gamified-assessments-opened-btn on the buttons and three code events with their properties. The developer agreed not to rename them.',
+  dev:'The pull request showed data-testids like gamified-assessments-activity-banner-opened-btn on the buttons and three code events with their properties. The developer agreed not to rename them.',
   demo:'With a test teacher and a test student logged in, the PM clicked through the game with the event stream open. “Joined” fired twice at first (a button inside a link) and was fixed before release.',
   build:'Cohorts: Target Teachers, Target Students, Adopters, Non-adopters. Six charts titled with the questions, one dashboard called [Gamified Assessments] Gamified Assessments in the Gamified Assessments space.',
   release:'All ten items ticked, Released pressed, and a reminder set for one month later to see whether the number moved.'};
@@ -70,7 +71,7 @@ const GLOSSARY=[
   ['Amplitude','The tool that records what teachers and students do in the product and turns it into charts.'],
   ['Event','One thing a user did, recorded with a name, e.g. gamified-assessments-opened. Every moment in your journey becomes one event.'],
   ['Autocapture','Amplitude recording clicks, page views and form submits by itself, without a developer writing code. It only sees real buttons, links and inputs.'],
-  ['Name tag (data-testid)','A hidden label the developer puts on a button or link so Amplitude can tell it apart reliably, in every language. Looks like feature-action-btn.'],
+  ['Name tag (data-testid)','A hidden label the developer puts on a button or link so Amplitude can tell it apart reliably, in every language. KB format: feature-screen-element-action-type, e.g. library-home-banner-opened-btn.'],
   ['Code event','An event the developer sends from the code when something happens that the page cannot see (a notification, a save confirmed by the server).'],
   ['Property','A detail attached to an event, e.g. grade, subject, class-id. Needed to break a chart down.'],
   ['Cohort','A saved group of users, e.g. “Target Teachers” or “Adopters”. Charts are filtered to a cohort so numbers are not diluted by admins and test accounts.'],
@@ -169,8 +170,11 @@ const N={
   Rs:d=>N.role(d).toLowerCase()+'s',
   r1:d=>N.role(d).toLowerCase(),
   label:m=>m.l||(MOMENTS.find(x=>x.v===m.v)||{l:m.v}).l,
-  ev:(d,m)=>(d.roles.length>1&&m.role?kebab(m.role)+'-':'')+N.slug(d)+'-'+m.v,
-  tid:(d,m)=>m.tag?m.tag:N.slug(d)+'-'+m.v+'-'+(m.el||'btn'),
+  ev:(d,m)=>{const same=d.journey.filter(x=>x.v===m.v).length>1; return [d.roles.length>1&&m.role?kebab(m.role):'',N.slug(d),same?(m.page||m.comp||''):'',m.v].filter(Boolean).join('-');},
+  tid:(d,m)=>m.tag?m.tag:[N.slug(d),m.page||'',m.comp||'',m.v,m.el||'btn'].filter(Boolean).join('-'),
+  tidFull:m=>!!(m.tag||(m.page&&m.comp)),
+  dups:d=>{const c={};const out=new Set(); d.journey.forEach(m=>{const k=(m.where==='code'?'E:':'T:')+(m.where==='code'?N.ev(d,m):N.tid(d,m)); if(c[k]) out.add(k.slice(2)); c[k]=1; if(m.where==='unsure'){const e='E:'+N.ev(d,m); if(c[e]) out.add(e.slice(2)); c[e]=1;}}); return [...out];},
+  pages:d=>[...new Set(d.journey.map(m=>m.page).filter(Boolean))],
   dash:d=>`[${d.productLine||'Product Line'}] ${N.F(d)}`,
   folder:d=>`${d.productLine||'Product line'} Space › ${N.F(d)}`,
   cohorts:d=>{const scope=d.tenants.length?' – '+d.tenants.map(t=>t.split(' (')[0]).join(' + '):''; return [...(d.roles.length?d.roles:['User']).map(r=>`[Persona] Target ${r}s${scope}`),`[Team] ${N.F(d)} – Adopters`,`[Team] ${N.F(d)} – Non-adopters`];},
@@ -218,7 +222,7 @@ function jiraText(d){
   L.push('## Acceptance criteria');
   L.push('Every moment below is instrumented in ONE of two ways. (A) a real button / link / input on the page gets a stable data-testid. (B) when the page cannot see it, the code emits the Amplitude event.');
   d.journey.forEach((m,i)=>{
-    const A=m.tag?`(A) keep the existing data-testid \`${m.tag}\` (never rename it)`:`(A) data-testid ends with \`${N.slug(d)}-${m.v}-${m.el||'btn'}\` — full id per the data-testid protocol: feature-page-group-action-suffix`;
+    const A=m.tag?`(A) keep the existing data-testid \`${m.tag}\` (never rename it)`:`(A) data-testid \`${N.tid(d,m)}\`${N.tidFull(m)?'':' — screen and element group not chosen by the PM: complete the id as feature-page-group-action-suffix and tell the PM the final id'}`;
     const B=`(B) code event \`${N.ev(d,m)}\`${(m.props&&m.props.length)?' with properties: '+m.props.join(', '):''}`;
     const line = m.where==='page'?A : m.where==='code'?B : `${A}  OR  ${B} — developer decides`;
     L.push(`- [ ] ${i+1}. ${N.label(m)}${d.roles.length>1&&m.role?' ('+m.role+')':''} → ${line}`);
@@ -272,6 +276,7 @@ function finalChecks(d){
     {t:'Every interactive element has a data-testid',on:!!d.dev.testids},
     {t:'I walked the demo with the event stream open',on:demoDone(d)},
     {t:'Every name is lowercase kebab-case',on:d.journey.length>0},
+    {t:'Every name tag and event is unique',on:d.journey.length>0&&N.dups(d).length===0},
     {t:'Adopter and non-adopter cohorts exist',on:!!d.build.cohorts},
     {t:'A dashboard is live and correctly named',on:!!(d.build.dashboard&&d.build.shared)},
   ];
@@ -338,13 +343,16 @@ const Screens={
         ${d.roles.length>1?`<div class="row"><span class="rl">Who does it</span>${d.roles.map(r=>`<button class="choice sm ${m.role===r?'on':''}" data-mrole="${i}:${esc(r)}">${esc(r)}</button>`).join('')}</div>`:''}</div>`).join('')}</div>`:`<div class="note">Start with “Opened it”, then the outcome.</div>`}
       <div class="note"><b>Naming rule.</b> Events are <code>[feature]-[action]</code>, lowercase kebab-case${d.roles.length>1?', prefixed by the role when more than one persona is involved':''}. Already applied above.</div>
     </div>`; },
-  hidden(d){ return head('Step 5 · Before refinement','What can the page see?','The only question that gets expensive later. A click, a page view or a form submit is on the page and needs only a name tag. Anything the page cannot see must be emitted by the developer — that is the whole developer ticket.','every moment has an answer. “Not sure” is a valid answer: the developer decides at refinement.','hidden')+
-    `<div class="card-body">${d.journey.length?`<div class="order">${d.journey.map((m,i)=>`<div class="step"><span class="idx">${i+1}</span><span class="t">${esc(N.label(m))}</span>
+  hidden(d){ const dup=N.dups(d); return head('Step 5 · Before refinement','What can the page see?','The only question that gets expensive later. A click, a page view or a form submit is on the page and needs only a name tag. Anything the page cannot see must be emitted by the developer — that is the whole developer ticket.','every moment has an answer. “Not sure” is a valid answer: the developer decides at refinement.','hidden')+
+    `<div class="card-body">${dup.length?`<div class="note warn"><b>Same name twice:</b> ${dup.map(x=>`<code>${esc(x)}</code>`).join(' ')}. Give each moment its own screen or element so the names differ.</div>`:''}${d.journey.length?`<div class="order">${d.journey.map((m,i)=>`<div class="step"><span class="idx">${i+1}</span><span class="t">${esc(N.label(m))}</span>
       <div class="row"><span class="rl">The page…</span>
         <button class="choice sm yes ${m.where==='page'?'on':''}" data-mwhere="${i}:page">sees it (a real button, link, view or submit)</button>
         <button class="choice sm no ${m.where==='code'?'on':''}" data-mwhere="${i}:code">cannot see it (happens in the code: a notification, a save confirmed by the server)</button>
         <button class="choice sm maybe ${m.where==='unsure'?'on':''}" data-mwhere="${i}:unsure">not sure — ask the developer</button></div>
-      ${m.where?`<div class="row"><span class="rl">Generated</span><span class="gen">${esc(m.where==='code'?N.ev(d,m):N.tid(d,m))}</span><button class="linkbtn" data-more="${m.id}">${moreOpen(m)?'Clear extra options':'More options'}</button></div>`:''}
+      ${m.where&&m.where!=='code'&&!m.tag?`<div class="row"><span class="rl">Which screen?</span>${N.pages(d).map(pg=>`<button class="choice sm ${m.page===pg?'on':''}" data-mpage="${i}:${esc(pg)}">${esc(pg)}</button>`).join('')}<input type="text" class="mini" data-mpagein="${i}" placeholder="${N.pages(d).length?'or type another, Enter':'e.g. home, explore, reader — Enter'}"></div>
+      <div class="row"><span class="rl">Which element?</span>${COMPONENTS.map(c=>`<button class="choice sm ${m.comp===c?'on':''}" data-mcomp="${i}:${c}">${c}</button>`).join('')}<input type="text" class="mini" data-mcompin="${i}" value="${esc(m.comp&&!COMPONENTS.includes(m.comp)?m.comp:'')}" placeholder="other, Enter"></div>`:''}
+      ${m.where?`<div class="row"><span class="rl">${m.where==='code'?'Code event':m.where==='unsure'?'Either':'Name tag'}</span><span class="gen">${esc(m.where==='code'?N.ev(d,m):N.tid(d,m))}</span>${m.where==='unsure'?`<span class="hint">or event <code>${esc(N.ev(d,m))}</code></span>`:''}<button class="linkbtn" data-more="${m.id}">${moreOpen(m)?'Clear extra options':'More options'}</button></div>
+      <div class="row"><span class="rl"></span><span class="hint" style="flex-basis:100%">${m.where==='code'?`Developer sends this event from the code${(m.props&&m.props.length)?' with: '+esc(m.props.join(', ')):''}. Chart: <code>${esc(N.ev(d,m))}</code>.`:N.tidFull(m)?`Developer puts <code>data-testid="${esc(N.tid(d,m))}"</code> on the ${EL_TYPES.find(e=>e.v===(m.el||'btn')).l.toLowerCase()}. Chart: Element Clicked · Element Hierarchy contains <code>${esc(N.tid(d,m))}</code>.`:`<span class="warn-text">Pick the screen and the element</span> — the KB id is feature-screen-element-action-type, and without them two moments can get the same name.`}</span></div>`:''}
       ${m.where&&moreOpen(m)?`${m.where!=='code'?`<div class="row"><span class="rl">Element type</span>${EL_TYPES.map(e=>`<button class="choice sm ${(m.el||'btn')===e.v?'on':''}" data-mel="${i}:${e.v}">${e.l} <code>-${e.v}</code></button>`).join('')}</div>`:''}
       ${m.where!=='code'?`<div class="row"><span class="rl">Existing name tag</span><input type="text" data-mtag="${i}" value="${esc(m.tag||'')}" placeholder="only if the button already has a data-testid" style="font:inherit;font-size:13px;padding:5px 9px;border:1.5px solid var(--line);border-radius:8px;background:var(--surface);color:var(--fg);min-width:0;flex:1"></div>`:''}
       <div class="row"><span class="rl">Extra properties</span><span class="hint" style="flex-basis:100%">Details the chart will need that the page does not know by itself. Skip if unsure.</span>${PROPS.map(p=>`<button class="choice sm ${(m.props||[]).includes(p)?'on':''}" data-mprop="${i}:${p}">${p}</button>`).join('')}</div>`:''}</div>`).join('')}</div>`:`<div class="note warn">Add the journey first (step 4).</div>`}
@@ -545,6 +553,11 @@ const App={
     card.querySelectorAll('[data-mv]').forEach(b=>b.onclick=()=>U(x=>{const [i,s]=b.dataset.mv.split(':').map(Number); const j=i+s; if(j<0||j>=x.journey.length) return; [x.journey[i],x.journey[j]]=[x.journey[j],x.journey[i]];}));
     card.querySelectorAll('[data-mrole]').forEach(b=>b.onclick=()=>U(x=>{const [i,r]=b.dataset.mrole.split(':'); x.journey[+i].role=r;}));
     card.querySelectorAll('[data-mwhere]').forEach(b=>b.onclick=()=>U(x=>{const [i,w]=b.dataset.mwhere.split(':'); x.journey[+i].where=w;}));
+    card.querySelectorAll('[data-mpage]').forEach(b=>b.onclick=()=>U(x=>{const [i,pg]=b.dataset.mpage.split(':'); x.journey[+i].page=x.journey[+i].page===pg?'':pg;}));
+    card.querySelectorAll('[data-mcomp]').forEach(b=>b.onclick=()=>U(x=>{const [i,c]=b.dataset.mcomp.split(':'); x.journey[+i].comp=x.journey[+i].comp===c?'':c;}));
+    card.querySelectorAll('[data-mpagein],[data-mcompin]').forEach(inp=>{const key=inp.dataset.mpagein!=null?'page':'comp', i=+(inp.dataset.mpagein??inp.dataset.mcompin);
+      let done=false; const commit=()=>{if(done) return; const v=actionSlug(inp.value); if(!v) return; done=true; setTimeout(()=>U(x=>{x.journey[i][key]=v;}),0);};
+      inp.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();commit();}}; inp.onblur=commit;});
     card.querySelectorAll('[data-mel]').forEach(b=>b.onclick=()=>U(x=>{const [i,e]=b.dataset.mel.split(':'); x.journey[+i].el=e;}));
     card.querySelectorAll('[data-mtag]').forEach(inp=>{inp.oninput=()=>{d.journey[+inp.dataset.mtag].tag=inp.value.trim(); this.touch();}; inp.onblur=()=>this.renderFeature(main); inp.onkeydown=e=>{if(e.key==='Enter')inp.blur();};});
     card.querySelectorAll('[data-mprop]').forEach(b=>b.onclick=()=>U(x=>{const [i,p]=b.dataset.mprop.split(':'); const m=x.journey[+i]; m.props=m.props||[]; m.props=m.props.includes(p)?m.props.filter(v=>v!==p):[...m.props,p];}));
