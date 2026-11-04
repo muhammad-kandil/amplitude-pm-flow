@@ -204,3 +204,8 @@ a{color:var(--accent)}
 .terms dt{font-weight:600}
 .terms dd{margin:0;color:var(--muted)}
 @media (max-width:520px){.terms{grid-template-columns:1fr}.terms dd{margin-bottom:6px}}
+.choice.dashed{border-style:dashed;color:var(--accent)}
+.choice.dashed.on{border-style:solid}
+.q.custom{background:var(--surface);border:1.5px dashed var(--accent);border-radius:12px;padding:12px 14px}
+.btn.sm{padding:8px 14px;font-size:14px}
+.btn:disabled{opacity:.45;cursor:not-allowed}

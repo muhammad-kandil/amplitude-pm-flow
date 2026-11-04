@@ -23,6 +23,9 @@ const MOMENTS=[
 const VERB={opened:'open',searched:'search in',viewed:'view an item in',started:'start',created:'create',submitted:'submit',saved:'save',completed:'complete',joined:'join',edited:'edit',deleted:'delete',
   'file-uploaded':'upload a file in',exported:'export from',shared:'share','notification-received':'get the notification for','question-answered':'answer a question in',
   'result-viewed':'see the result of',failed:'hit an error in',dismissed:'dismiss',retried:'retry'};
+const verbOf=m=>VERB[m.v]||((m.l||m.v).toLowerCase().replace(/[^a-z0-9 ]/g,'')+' in');
+const STOP=new Set(['a','an','the','it','to','is','of','its','their','his','her','my','this','that']);
+const actionSlug=s=>(s||'').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim().split(' ').filter(w=>w&&!STOP.has(w)).slice(0,4).join('-');
 const EL_TYPES=[{v:'btn',l:'Button'},{v:'link',l:'Link'},{v:'toggle',l:'Toggle / checkbox'},{v:'dropdown',l:'Dropdown'},{v:'input',l:'Text field'}];
 const PROPS=['grade','subject','tenant','school-id','class-id','assessment-type','language','entry-point','attempt-number','score','duration-seconds','status','error-code','item-count'];
 const CATEGORICAL=['grade','subject','tenant','school-id','assessment-type','language','entry-point','status'];
@@ -165,7 +168,7 @@ const N={
   role:d=>d.roles[0]||'User',
   Rs:d=>N.role(d).toLowerCase()+'s',
   r1:d=>N.role(d).toLowerCase(),
-  label:m=>(MOMENTS.find(x=>x.v===m.v)||{l:m.v}).l,
+  label:m=>m.l||(MOMENTS.find(x=>x.v===m.v)||{l:m.v}).l,
   ev:(d,m)=>(d.roles.length>1&&m.role?kebab(m.role)+'-':'')+N.slug(d)+'-'+m.v,
   tid:(d,m)=>m.tag?m.tag:N.slug(d)+'-'+m.v+'-'+(m.el||'btn'),
   dash:d=>`[${d.productLine||'Product Line'}] ${N.F(d)}`,
@@ -180,13 +183,13 @@ function suggested(d){
   const ms=d.journey; if(!ms.length) return [];
   const a=ms[0], z=ms[ms.length-1], fail=ms.find(m=>m.v==='failed'), out=[];
   const R=N.Rs(d), F=N.F(d);
-  out.push({id:'adopt',t:`How many ${R} ${VERB[a.v]} ${F} each week?`,how:QTYPES[0].how,ev:[a]});
-  out.push({id:'share',t:`What % of active ${R} ${VERB[a.v]} ${F}?`,how:QTYPES[1].how,ev:[a]});
+  out.push({id:'adopt',t:`How many ${R} ${verbOf(a)} ${F} each week?`,how:QTYPES[0].how,ev:[a]});
+  out.push({id:'share',t:`What % of active ${R} ${verbOf(a)} ${F}?`,how:QTYPES[1].how,ev:[a]});
   if(ms.length>1){
     out.push({id:'funnel',t:`Where do ${R} drop off between “${N.label(a)}” and “${N.label(z)}”?`,how:`Funnel · ${ms.length} steps in this order · within 1 hour`,ev:ms});
     out.push({id:'time',t:`How long does it take a ${N.r1(d)} from “${N.label(a)}” to “${N.label(z)}”?`,how:QTYPES[3].how,ev:[a,z]});
   }
-  out.push({id:'retain',t:`Do ${R} who ${VERB[z.v]} ${F} come back the next week?`,how:QTYPES[4].how,ev:[z]});
+  out.push({id:'retain',t:`Do ${R} who ${verbOf(z)} ${F} come back the next week?`,how:QTYPES[4].how,ev:[z]});
   const cat=d.compare.filter(p=>CATEGORICAL.includes(p));
   if(cat.length) out.push({id:'break',t:`Which ${cat.slice(0,3).join(' / ')} uses ${F} most?`,how:`Data table · grouped by ${cat[0]}`,ev:[z]});
   if(fail) out.push({id:'fail',t:`How often do ${R} hit an error in ${F}?`,how:'Segmentation · Event totals per user',ev:[fail]});
@@ -299,7 +302,7 @@ function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');cl
 async function copyText(txt,btn){let ok=false;try{await navigator.clipboard.writeText(txt);ok=true;}catch(e){try{const ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();ok=document.execCommand('copy');document.body.removeChild(ta);}catch(e2){}}
   if(btn){const old=btn.textContent;btn.classList.add('did');btn.textContent=ok?'Copied':'Select & copy';setTimeout(()=>{btn.classList.remove('did');btn.textContent=old;},1500);} toast(ok?'Copied':'Could not copy — select the text and copy it');}
 const chips=(list,sel,attr,cls='')=>`<div class="choices">${list.map(v=>`<button class="choice ${cls} ${sel.includes(v)?'on':''}" data-${attr}="${esc(v)}">${esc(v)}</button>`).join('')}</div>`;
-const UI={showExample:false,showText:{},more:{}};
+const UI={showExample:false,showText:{},more:{},customOpen:false};
 const moreOpen=m=>!!(UI.more[m.id]||((m.props&&m.props.length)||(m.el&&m.el!=='btn')||m.tag));
 const head=(e,t,w,dw,k)=>`<div class="card-head"><div class="eyebrow">${e}</div><h2>${t}</h2>${w?`<p class="why">${w}</p>`:''}
   <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px">${dw?`<div class="done-when" style="margin-top:0"><b>Done when</b> ${dw}</div>`:''}${k&&EXAMPLE_NOTES[k]?`<button class="linkbtn" id="exToggle">${UI.showExample?'Hide example':'Show example'}</button>`:''}</div>
@@ -329,7 +332,8 @@ const Screens={
     </div>`; },
   journey(d){ return head('Step 4 · Discovery','What does the user do, in order?','Each moment becomes one event. The first is how they get in; the last is the outcome you care about. If you cannot name the chart it feeds, you do not need the moment.','the journey has at least one moment (four to six is typical).','journey')+
     `<div class="card-body">
-      <div class="q"><div class="label">Tap to add a moment</div><div class="choices">${MOMENTS.map(x=>`<button class="choice" data-add="${x.v}">${x.l}</button>`).join('')}</div></div>
+      <div class="q"><div class="label">Tap to add a moment</div><div class="choices">${MOMENTS.map(x=>`<button class="choice" data-add="${x.v}">${x.l}</button>`).join('')}<button class="choice dashed ${UI.customOpen?'on':''}" id="customOpen">+ Something else…</button></div>
+      ${UI.customOpen?`<div class="q custom"><div class="label">Describe the moment in your words</div><div class="hint">Past tense, two or three words, like the chips above. The event name is made for you — you never type names.</div><div class="field"><input id="customMoment" type="text" placeholder="e.g. Bookmarked a page" autocomplete="off" maxlength="40"><span class="gen" id="customOut">${N.slug(d)}-…</span><button class="btn sm" id="customAdd">Add moment</button></div></div>`:''}</div>
       ${d.journey.length?`<div class="order">${d.journey.map((m,i)=>`<div class="step"><span class="idx">${i+1}</span><span class="t">${esc(N.label(m))}</span><span class="gen">${esc(N.ev(d,m))}</span><span class="tools"><button class="icon-btn" data-mv="${i}:-1" aria-label="Move up">↑</button><button class="icon-btn" data-mv="${i}:1" aria-label="Move down">↓</button><button class="icon-btn" data-rm="${i}" aria-label="Remove">✕</button></span>
         ${d.roles.length>1?`<div class="row"><span class="rl">Who does it</span>${d.roles.map(r=>`<button class="choice sm ${m.role===r?'on':''}" data-mrole="${i}:${esc(r)}">${esc(r)}</button>`).join('')}</div>`:''}</div>`).join('')}</div>`:`<div class="note">Start with “Opened it”, then the outcome.</div>`}
       <div class="note"><b>Naming rule.</b> Events are <code>[feature]-[action]</code>, lowercase kebab-case${d.roles.length>1?', prefixed by the role when more than one persona is involved':''}. Already applied above.</div>
@@ -532,6 +536,11 @@ const App={
     card.querySelectorAll('[data-tenant]').forEach(b=>b.onclick=()=>U(x=>{const r=b.dataset.tenant; x.tenants=x.tenants.includes(r)?x.tenants.filter(v=>v!==r):[...x.tenants,r];}));
     card.querySelectorAll('[data-cmp]').forEach(b=>b.onclick=()=>U(x=>{const r=b.dataset.cmp; x.compare=x.compare.includes(r)?x.compare.filter(v=>v!==r):[...x.compare,r];}));
     card.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>U(x=>{x.journey.push({id:uid().slice(0,8),v:b.dataset.add,where:null,el:'btn',props:[],role:x.roles[0]||null});}));
+    const co=card.querySelector('#customOpen'); if(co) co.onclick=()=>{UI.customOpen=!UI.customOpen; this.renderFeature(main); const i=document.querySelector('#customMoment'); if(i) i.focus();};
+    const ci=card.querySelector('#customMoment'); if(ci){ const out=card.querySelector('#customOut'), add=card.querySelector('#customAdd');
+      const slug=()=>actionSlug(ci.value); const upd=()=>{const a=slug(); out.textContent=N.slug(d)+'-'+(a||'…'); add.disabled=!a;}; upd(); ci.oninput=upd;
+      const commit=()=>{const a=slug(); if(!a) return; const l=ci.value.trim().replace(/\s+/g,' '); const dup=d.journey.find(m=>m.v===a)||MOMENTS.find(m=>m.v===a); if(dup){toast('That moment already exists — tap it above');return;} UI.customOpen=false; U(x=>{x.journey.push({id:uid().slice(0,8),v:a,l:l[0].toUpperCase()+l.slice(1),custom:true,where:null,el:'btn',props:[],role:x.roles[0]||null});});};
+      add.onclick=commit; ci.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();commit();} if(e.key==='Escape'){UI.customOpen=false;this.renderFeature(main);}}; }
     card.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>U(x=>{x.journey.splice(+b.dataset.rm,1);}));
     card.querySelectorAll('[data-mv]').forEach(b=>b.onclick=()=>U(x=>{const [i,s]=b.dataset.mv.split(':').map(Number); const j=i+s; if(j<0||j>=x.journey.length) return; [x.journey[i],x.journey[j]]=[x.journey[j],x.journey[i]];}));
     card.querySelectorAll('[data-mrole]').forEach(b=>b.onclick=()=>U(x=>{const [i,r]=b.dataset.mrole.split(':'); x.journey[+i].role=r;}));
